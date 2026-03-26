@@ -21,6 +21,9 @@ class UserPreferenceStore @Inject constructor(
         val AGENT_ENABLED = booleanPreferencesKey("agent_enabled")
         val AGENT_FREQUENCY = stringPreferencesKey("agent_frequency")
         val SPRITE_APPEARANCE = stringPreferencesKey("sprite_appearance")
+        val WHITELIST_CACHE_TIME = longPreferencesKey("whitelist_cache_time")
+        val NEW_GAMES_CACHE_TIME = longPreferencesKey("new_games_cache_time")
+        val GAME_WHITELIST = stringSetPreferencesKey("game_whitelist")
     }
 
     val theme: Flow<String> = context.dataStore.data.map { it[THEME_KEY] ?: "galaxy" }
@@ -32,5 +35,20 @@ class UserPreferenceStore @Inject constructor(
 
     suspend fun setAgentEnabled(enabled: Boolean) {
         context.dataStore.edit { it[AGENT_ENABLED] = enabled }
+    }
+
+    val whitelistCacheTime: Flow<Long> = context.dataStore.data.map { it[WHITELIST_CACHE_TIME] ?: 0L }
+    val newGamesCacheTime: Flow<Long> = context.dataStore.data.map { it[NEW_GAMES_CACHE_TIME] ?: 0L }
+    val gameWhitelist: Flow<Set<String>> = context.dataStore.data.map { it[GAME_WHITELIST] ?: emptySet() }
+
+    suspend fun setWhitelistCache(whitelist: Set<String>) {
+        context.dataStore.edit {
+            it[GAME_WHITELIST] = whitelist
+            it[WHITELIST_CACHE_TIME] = System.currentTimeMillis()
+        }
+    }
+
+    suspend fun setNewGamesCacheTime(time: Long) {
+        context.dataStore.edit { it[NEW_GAMES_CACHE_TIME] = time }
     }
 }
