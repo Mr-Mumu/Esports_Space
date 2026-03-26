@@ -12,6 +12,9 @@ interface DeviceSnapshotDao {
     @Query("SELECT * FROM device_snapshots ORDER BY timestamp DESC LIMIT :limit")
     fun getRecent(limit: Int): Flow<List<DeviceSnapshotEntity>>
 
+    @Query("SELECT * FROM device_snapshots WHERE timestamp >= :sinceMillis ORDER BY timestamp DESC")
+    fun getSnapshotsSince(sinceMillis: Long): Flow<List<DeviceSnapshotEntity>>
+
     @Query("DELETE FROM device_snapshots WHERE timestamp < :before")
     suspend fun deleteOlderThan(before: Long)
 }
