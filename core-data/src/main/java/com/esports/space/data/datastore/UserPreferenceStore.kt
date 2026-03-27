@@ -51,4 +51,18 @@ class UserPreferenceStore @Inject constructor(
     suspend fun setNewGamesCacheTime(time: Long) {
         context.dataStore.edit { it[NEW_GAMES_CACHE_TIME] = time }
     }
+
+    val spriteAppearance: Flow<String> =
+        context.dataStore.data.map { it[SPRITE_APPEARANCE] ?: "default" }
+
+    val agentFrequency: Flow<Int> =
+        context.dataStore.data.map { (it[AGENT_FREQUENCY] ?: "30").toIntOrNull() ?: 30 }
+
+    suspend fun setSpriteAppearance(appearance: String) {
+        context.dataStore.edit { it[SPRITE_APPEARANCE] = appearance }
+    }
+
+    suspend fun setAgentFrequency(minutes: Int) {
+        context.dataStore.edit { it[AGENT_FREQUENCY] = minutes.toString() }
+    }
 }
