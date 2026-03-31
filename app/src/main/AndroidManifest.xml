@@ -16,6 +16,8 @@
     <application
         android:name=".EsportsSpaceApp"
         android:label="电竞空间"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/Theme.EsportsSpace"
         android:supportsRtl="true">
 
@@ -25,11 +27,9 @@
             android:launchMode="singleTask"
             android:screenOrientation="landscape"
             android:supportsPictureInPicture="true"
-            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout|pictureInPicture">
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.HOME" />
-                <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -41,3 +41,4 @@
 
     </application>
 </manifest>
+

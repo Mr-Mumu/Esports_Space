@@ -2,12 +2,13 @@ package com.esports.space.livestream.ui
 
 import android.app.Activity
 import android.app.PictureInPictureParams
+import android.content.Context
+import android.content.ContextWrapper
 import android.os.Build
 import android.util.Rational
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
-import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,13 +18,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.esports.space.ui.theme.LocalThemeConfig
+
+private fun Context.findActivity(): Activity? {
+    var ctx = this
+    while (ctx is ContextWrapper) {
+        if (ctx is Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}
 
 @Composable
 fun WebViewPlayer(
@@ -32,7 +42,7 @@ fun WebViewPlayer(
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalThemeConfig.current
-    val activity = LocalActivity.current
+    val activity = LocalContext.current.findActivity()
 
     Column(modifier = modifier.fillMaxSize()) {
         Row(
