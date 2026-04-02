@@ -9,7 +9,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.esports.space.MainViewModel
 import com.esports.space.agent.sprite.SpriteSettingsScreen
 import com.esports.space.agent.ui.AgentViewModel
 import com.esports.space.datacenter.ui.DataCenterScreen
@@ -41,16 +40,13 @@ object Routes {
 }
 
 @Composable
-fun AppNavigation(mainViewModel: MainViewModel) {
+fun AppNavigation() {
     val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = Routes.HOME) {
 
         composable(Routes.HOME) {
-            HomeScreen(
-                navController = navController,
-                mainViewModel = mainViewModel
-            )
+            HomeScreen(navController = navController)
         }
 
         composable(Routes.DATA_CENTER) {

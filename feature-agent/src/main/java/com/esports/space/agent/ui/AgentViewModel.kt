@@ -24,7 +24,13 @@ data class AgentUiState(
     val isEnabled: Boolean = true,
     val spriteAppearance: String = "default",
     val frequencyMinutes: Int = 30,
-    val showBubble: Boolean = false
+    val thinkingMode: String = "hybrid",
+    val showBubble: Boolean = false,
+    val showRecommendationPanel: Boolean = false,
+    val spritePosX: Int = 980,
+    val spritePosY: Int = 520,
+    val panelOffsetX: Int = 0,
+    val panelOffsetY: Int = 0
 )
 
 @HiltViewModel
@@ -55,6 +61,26 @@ class AgentViewModel @Inject constructor(
 
         userPreferenceStore.agentFrequency
             .onEach { freq -> _uiState.update { it.copy(frequencyMinutes = freq) } }
+            .launchIn(viewModelScope)
+
+        userPreferenceStore.agentThinkingMode
+            .onEach { mode -> _uiState.update { it.copy(thinkingMode = mode) } }
+            .launchIn(viewModelScope)
+
+        userPreferenceStore.spritePositionX
+            .onEach { x -> _uiState.update { it.copy(spritePosX = x) } }
+            .launchIn(viewModelScope)
+
+        userPreferenceStore.spritePositionY
+            .onEach { y -> _uiState.update { it.copy(spritePosY = y) } }
+            .launchIn(viewModelScope)
+
+        userPreferenceStore.panelOffsetX
+            .onEach { x -> _uiState.update { it.copy(panelOffsetX = x) } }
+            .launchIn(viewModelScope)
+
+        userPreferenceStore.panelOffsetY
+            .onEach { y -> _uiState.update { it.copy(panelOffsetY = y) } }
             .launchIn(viewModelScope)
     }
 
@@ -92,6 +118,14 @@ class AgentViewModel @Inject constructor(
         _uiState.update { it.copy(showBubble = false) }
     }
 
+    fun onSpriteTapped() {
+        _uiState.update { it.copy(showRecommendationPanel = !it.showRecommendationPanel) }
+    }
+
+    fun closeRecommendationPanel() {
+        _uiState.update { it.copy(showRecommendationPanel = false) }
+    }
+
     fun setAgentEnabled(enabled: Boolean) {
         viewModelScope.launch {
             userPreferenceStore.setAgentEnabled(enabled)
@@ -110,6 +144,26 @@ class AgentViewModel @Inject constructor(
 
     fun setFrequency(minutes: Int) {
         viewModelScope.launch { userPreferenceStore.setAgentFrequency(minutes) }
+    }
+
+    fun setThinkingMode(mode: String) {
+        viewModelScope.launch { userPreferenceStore.setAgentThinkingMode(mode) }
+    }
+
+    fun acceptEvent(event: AgentEventEntity) {
+        viewModelScope.launch { agentEventDao.updateUserAction(event.id, UserAction.ACCEPTED) }
+    }
+
+    fun dismissEvent(event: AgentEventEntity) {
+        viewModelScope.launch { agentEventDao.updateUserAction(event.id, UserAction.DISMISSED) }
+    }
+
+    fun persistSpritePosition(x: Int, y: Int) {
+        viewModelScope.launch { userPreferenceStore.setSpritePosition(x, y) }
+    }
+
+    fun persistPanelOffset(x: Int, y: Int) {
+        viewModelScope.launch { userPreferenceStore.setPanelOffset(x, y) }
     }
 
     private suspend fun updateEventAction(action: TriggeredAction, userAction: UserAction) {

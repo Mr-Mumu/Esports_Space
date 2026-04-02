@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
             val theme by mainViewModel.currentTheme.collectAsStateWithLifecycle()
 
             EsportsTheme(themeConfig = theme) {
-                AppNavigation(mainViewModel = mainViewModel)
+                AppNavigation()
             }
         }
     }

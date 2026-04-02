@@ -1,5 +1,7 @@
 package com.esports.space.agent.sprite
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +31,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.DoNotDisturb
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,11 +45,13 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.esports.space.agent.ui.AgentViewModel
 import com.esports.space.ui.theme.LocalThemeConfig
 
@@ -75,6 +80,13 @@ fun SpriteSettingsScreen(
 ) {
     val theme = LocalThemeConfig.current
     val uiState by viewModel.uiState.collectAsState()
+    val picker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.setSpriteAppearance("custom:$uri")
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -168,13 +180,60 @@ fun SpriteSettingsScreen(
 
             Spacer(Modifier.height(8.dp))
             FilledTonalButton(
-                onClick = { /* placeholder for custom import */ },
+                onClick = { picker.launch("image/*") },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text("自定义导入")
             }
+
+            if (uiState.spriteAppearance.startsWith("custom:")) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = "当前：自定义皮肤",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = theme.textSecondary
+                )
+                Spacer(Modifier.height(8.dp))
+                AsyncImage(
+                    model = uiState.spriteAppearance.removePrefix("custom:"),
+                    contentDescription = "自定义皮肤预览",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .border(1.dp, theme.primaryAccent.copy(alpha = 0.45f), CircleShape)
+                )
+            }
+
+            Spacer(Modifier.height(24.dp))
+            SectionHeader("AI 想法模式")
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ThinkingModeChip(
+                    label = "本地",
+                    selected = uiState.thinkingMode == "local",
+                    onClick = { viewModel.setThinkingMode("local") }
+                )
+                ThinkingModeChip(
+                    label = "云端",
+                    selected = uiState.thinkingMode == "cloud",
+                    onClick = { viewModel.setThinkingMode("cloud") }
+                )
+                ThinkingModeChip(
+                    label = "混合",
+                    selected = uiState.thinkingMode == "hybrid",
+                    onClick = { viewModel.setThinkingMode("hybrid") }
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "推荐：混合模式（离线稳定 + 联网更有个性）",
+                style = MaterialTheme.typography.bodySmall,
+                color = theme.textSecondary
+            )
 
             Spacer(Modifier.height(24.dp))
             SectionHeader("推荐频率")
@@ -243,6 +302,20 @@ fun SpriteSettingsScreen(
             Spacer(Modifier.height(32.dp))
         }
     }
+}
+
+@Composable
+private fun ThinkingModeChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+        leadingIcon = null
+    )
 }
 
 @Composable

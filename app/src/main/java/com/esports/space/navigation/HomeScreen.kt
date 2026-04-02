@@ -1,34 +1,52 @@
 package com.esports.space.navigation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.esports.space.MainViewModel
 import com.esports.space.agent.sprite.BubbleDialog
 import com.esports.space.agent.sprite.SpriteView
 import com.esports.space.agent.sprite.rememberSpriteAnimationState
 import com.esports.space.agent.ui.AgentViewModel
+import com.esports.space.agent.ui.RecommendationListPanel
 import com.esports.space.games.ui.GamesScreen
 import com.esports.space.livestream.ui.LivestreamPanel
 import com.esports.space.livestream.ui.LivestreamViewModel
@@ -38,16 +56,15 @@ import com.esports.space.performance.ui.PerformancePanel
 import com.esports.space.performance.ui.PerformanceViewModel
 import com.esports.space.ui.component.BottomPill
 import com.esports.space.ui.component.EcgBackground
+import com.esports.space.ui.component.GlassCard
 import com.esports.space.ui.component.StatusBar
 import com.esports.space.ui.theme.LocalThemeConfig
 
 @Composable
-fun HomeScreen(
-    navController: NavController,
-    mainViewModel: MainViewModel
-) {
+fun HomeScreen(navController: NavController) {
     val theme = LocalThemeConfig.current
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     val performanceVm: PerformanceViewModel = hiltViewModel()
     val newsVm: NewsViewModel = hiltViewModel()
@@ -58,6 +75,30 @@ fun HomeScreen(
     val newsState by newsVm.uiState.collectAsStateWithLifecycle()
     val livestreamState by livestreamVm.uiState.collectAsStateWithLifecycle()
     val agentState by agentVm.uiState.collectAsStateWithLifecycle()
+    var spriteAnchor by remember { mutableStateOf(IntOffset(agentState.spritePosX, agentState.spritePosY)) }
+    var panelDragOffset by remember { mutableStateOf(IntOffset(agentState.panelOffsetX, agentState.panelOffsetY)) }
+    var spriteLayerVisible by remember { mutableStateOf(true) }
+
+    LaunchedEffect(agentState.spritePosX, agentState.spritePosY) {
+        spriteAnchor = IntOffset(agentState.spritePosX, agentState.spritePosY)
+    }
+
+    LaunchedEffect(agentState.panelOffsetX, agentState.panelOffsetY) {
+        panelDragOffset = IntOffset(agentState.panelOffsetX, agentState.panelOffsetY)
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> spriteLayerVisible = true
+                Lifecycle.Event.ON_PAUSE,
+                Lifecycle.Event.ON_STOP -> spriteLayerVisible = false
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     val spriteAnimState = rememberSpriteAnimationState()
 
@@ -81,6 +122,34 @@ fun HomeScreen(
                 )
             }
         }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            theme.background.copy(alpha = 0.22f),
+                            theme.background.copy(alpha = 0.52f)
+                        )
+                    )
+                )
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            theme.primaryAccent.copy(alpha = 0.16f),
+                            Color.Transparent
+                        ),
+                        radius = 1200f
+                    )
+                )
+        )
 
         // Layer 2 — ECG performance heartbeat background
         EcgBackground(
@@ -148,16 +217,22 @@ fun HomeScreen(
         )
 
         // Layer 6 — Agent sprite overlay
-        if (agentState.isEnabled) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 24.dp, bottom = 96.dp)
-            ) {
+        AnimatedVisibility(
+            visible = agentState.isEnabled && spriteLayerVisible,
+            enter = fadeIn(animationSpec = tween(420)) + scaleIn(initialScale = 0.92f),
+            exit = fadeOut(animationSpec = tween(220)) + scaleOut(targetScale = 0.92f)
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 SpriteView(
                     spriteAsset = agentState.spriteAppearance,
                     animState = spriteAnimState,
-                    onClick = { agentVm.closeBubble() }
+                    onClick = { agentVm.onSpriteTapped() },
+                    initialPosition = IntOffset(agentState.spritePosX, agentState.spritePosY),
+                    onPositionChanged = { spriteAnchor = it },
+                    onDragFinished = { pos ->
+                        agentVm.persistSpritePosition(pos.x, pos.y)
+                    },
+                    modifier = Modifier.fillMaxSize()
                 )
                 BubbleDialog(
                     visible = agentState.showBubble,
@@ -170,9 +245,49 @@ fun HomeScreen(
                     },
                     onClose = { agentVm.closeBubble() },
                     modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(bottom = 8.dp)
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 112.dp, bottom = 180.dp)
                 )
+
+                AnimatedVisibility(
+                    visible = agentState.showRecommendationPanel,
+                    enter = scaleIn() + fadeIn(),
+                    exit = scaleOut() + fadeOut(),
+                    modifier = Modifier.offset {
+                        IntOffset(
+                            x = (spriteAnchor.x - 360 + panelDragOffset.x).coerceAtLeast(0),
+                            y = (spriteAnchor.y - 180 + panelDragOffset.y).coerceAtLeast(0)
+                        )
+                    }
+                ) {
+                    GlassCard {
+                        RecommendationListPanel(
+                            events = agentState.recentList,
+                            onAccept = { agentVm.acceptEvent(it) },
+                            onDismiss = { agentVm.dismissEvent(it) },
+                            maxItems = 5,
+                            modifier = Modifier
+                                .fillMaxWidth(0.36f)
+                                .padding(vertical = 8.dp)
+                                .pointerInput(Unit) {
+                                    detectDragGestures(
+                                        onDragEnd = {
+                                            agentVm.persistPanelOffset(
+                                                panelDragOffset.x,
+                                                panelDragOffset.y
+                                            )
+                                        }
+                                    ) { change, dragAmount ->
+                                        change.consume()
+                                        panelDragOffset = IntOffset(
+                                            panelDragOffset.x + dragAmount.x.toInt(),
+                                            panelDragOffset.y + dragAmount.y.toInt()
+                                        )
+                                    }
+                                }
+                        )
+                    }
+                }
             }
         }
     }

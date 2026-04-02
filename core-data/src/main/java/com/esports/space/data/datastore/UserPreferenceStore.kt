@@ -21,6 +21,11 @@ class UserPreferenceStore @Inject constructor(
         val AGENT_ENABLED = booleanPreferencesKey("agent_enabled")
         val AGENT_FREQUENCY = stringPreferencesKey("agent_frequency")
         val SPRITE_APPEARANCE = stringPreferencesKey("sprite_appearance")
+        val AGENT_THINKING_MODE = stringPreferencesKey("agent_thinking_mode")
+        val SPRITE_POS_X = intPreferencesKey("sprite_pos_x")
+        val SPRITE_POS_Y = intPreferencesKey("sprite_pos_y")
+        val PANEL_OFFSET_X = intPreferencesKey("panel_offset_x")
+        val PANEL_OFFSET_Y = intPreferencesKey("panel_offset_y")
         val WHITELIST_CACHE_TIME = longPreferencesKey("whitelist_cache_time")
         val NEW_GAMES_CACHE_TIME = longPreferencesKey("new_games_cache_time")
         val GAME_WHITELIST = stringSetPreferencesKey("game_whitelist")
@@ -57,6 +62,12 @@ class UserPreferenceStore @Inject constructor(
 
     val agentFrequency: Flow<Int> =
         context.dataStore.data.map { (it[AGENT_FREQUENCY] ?: "30").toIntOrNull() ?: 30 }
+    val agentThinkingMode: Flow<String> =
+        context.dataStore.data.map { it[AGENT_THINKING_MODE] ?: "hybrid" }
+    val spritePositionX: Flow<Int> = context.dataStore.data.map { it[SPRITE_POS_X] ?: 980 }
+    val spritePositionY: Flow<Int> = context.dataStore.data.map { it[SPRITE_POS_Y] ?: 520 }
+    val panelOffsetX: Flow<Int> = context.dataStore.data.map { it[PANEL_OFFSET_X] ?: 0 }
+    val panelOffsetY: Flow<Int> = context.dataStore.data.map { it[PANEL_OFFSET_Y] ?: 0 }
 
     suspend fun setSpriteAppearance(appearance: String) {
         context.dataStore.edit { it[SPRITE_APPEARANCE] = appearance }
@@ -64,5 +75,23 @@ class UserPreferenceStore @Inject constructor(
 
     suspend fun setAgentFrequency(minutes: Int) {
         context.dataStore.edit { it[AGENT_FREQUENCY] = minutes.toString() }
+    }
+
+    suspend fun setAgentThinkingMode(mode: String) {
+        context.dataStore.edit { it[AGENT_THINKING_MODE] = mode }
+    }
+
+    suspend fun setSpritePosition(x: Int, y: Int) {
+        context.dataStore.edit {
+            it[SPRITE_POS_X] = x
+            it[SPRITE_POS_Y] = y
+        }
+    }
+
+    suspend fun setPanelOffset(x: Int, y: Int) {
+        context.dataStore.edit {
+            it[PANEL_OFFSET_X] = x
+            it[PANEL_OFFSET_Y] = y
+        }
     }
 }

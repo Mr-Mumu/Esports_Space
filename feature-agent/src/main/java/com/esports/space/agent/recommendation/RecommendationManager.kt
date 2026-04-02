@@ -1,6 +1,7 @@
 package com.esports.space.agent.recommendation
 
 import com.esports.space.agent.perception.PerceptionEngine
+import com.esports.space.agent.perception.PerceptionContext
 import com.esports.space.agent.rules.Rule
 import com.esports.space.agent.rules.RuleEngine
 import com.esports.space.agent.rules.RuleParser
@@ -10,10 +11,12 @@ import com.esports.space.data.db.entity.AgentEventEntity
 import com.esports.space.data.db.entity.AgentEventType
 import com.esports.space.data.datastore.UserPreferenceStore
 import com.esports.space.network.api.AgentApi
+import com.esports.space.network.model.AgentEnhanceRequest
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -77,16 +80,19 @@ class RecommendationManager @Inject constructor(
         val topAction = actions.firstOrNull() ?: return
         if (now - lastProactiveTimestamp < MIN_PROACTIVE_INTERVAL_MS) return
 
+        val thinkingMode = userPreferenceStore.agentThinkingMode.first()
+        val enrichedAction = enrichActionWithThought(topAction, context, thinkingMode)
+
         lastProactiveTimestamp = now
         val entity = AgentEventEntity(
             timestamp = now,
-            eventType = AgentEventType.valueOf(topAction.type),
-            triggerSource = topAction.ruleId,
-            content = topAction.message,
+            eventType = AgentEventType.valueOf(enrichedAction.type),
+            triggerSource = enrichedAction.ruleId,
+            content = enrichedAction.message,
             userAction = null
         )
         agentEventDao.insert(entity)
-        _recommendations.emit(topAction)
+        _recommendations.emit(enrichedAction)
     }
 
     suspend fun syncRules() {
@@ -102,4 +108,60 @@ class RecommendationManager @Inject constructor(
 
     fun recentRecommendations(): Flow<List<AgentEventEntity>> =
         agentEventDao.getRecent(20)
+
+    private suspend fun enrichActionWithThought(
+        action: TriggeredAction,
+        context: PerceptionContext,
+        thinkingMode: String
+    ): TriggeredAction {
+        val localThought = composeLocalThought(action.message, context)
+        val cloudThought = if (thinkingMode == "cloud" || thinkingMode == "hybrid") {
+            requestCloudThought(context)
+        } else {
+            null
+        }
+
+        val finalMessage = when (thinkingMode) {
+            "local" -> localThought
+            "cloud" -> cloudThought ?: localThought
+            else -> if (cloudThought.isNullOrBlank()) localThought else "$localThought\n$cloudThought"
+        }
+
+        return action.copy(message = finalMessage)
+    }
+
+    private fun composeLocalThought(baseMessage: String, context: PerceptionContext): String {
+        val timeHint = when (context.timeSlot.name) {
+            "MORNING" -> "晨间状态不错，适合热手。"
+            "AFTERNOON" -> "下午段注意节奏，稳住操作。"
+            "EVENING" -> "黄金时段已到，可以冲一把。"
+            else -> "夜深了，建议轻量放松局。"
+        }
+        val deviceHint = when {
+            context.batteryPercent <= 20 && !context.isCharging -> "电量偏低，先连充更稳。"
+            (context.cpuTemp ?: 0f) >= 45f -> "设备温度有点高，建议降低负载。"
+            else -> "当前设备状态稳定。"
+        }
+        return "$baseMessage\n$timeHint $deviceHint"
+    }
+
+    private suspend fun requestCloudThought(context: PerceptionContext): String? {
+        return runCatching {
+            val summary = buildString {
+                append("hour=${context.currentHour};")
+                append("slot=${context.timeSlot};")
+                append("nonGame=${context.continuousNonGameMinutes};")
+                append("battery=${context.batteryPercent};")
+                append("charging=${context.isCharging};")
+                append("calendar=${context.upcomingCalendarEvents.size}")
+            }
+            val response = agentApi.enhance(
+                AgentEnhanceRequest(
+                    dimensions = listOf("time", "usage", "device", "calendar"),
+                    behaviorSummary = summary
+                )
+            )
+            response.data?.recommendations?.firstOrNull()?.takeIf { it.isNotBlank() }
+        }.getOrNull()
+    }
 }
